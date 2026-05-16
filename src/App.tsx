@@ -561,9 +561,17 @@ Respond in strict JSON format.` }
       console.error("Analysis failure:", error);
       const errorMsg = error.message || "Unknown disruption";
       
-      if (errorMsg.includes("429") || errorMsg.toLowerCase().includes("quota")) {
-        toast.error("Quota Exceeded: Your Free Tier Gemini API key has reached its limit. Please wait 1 minute or try a new API key.");
+      const isQuotaError = errorMsg.includes("429") || errorMsg.toLowerCase().includes("quota");
+      const isDemandError = errorMsg.includes("503") || errorMsg.toLowerCase().includes("demand") || errorMsg.toLowerCase().includes("unavailable");
+
+      if (isQuotaError) {
+        toast.error("Quota Exceeded: Your Free Tier Gemini API key has reached its limit. Please wait 1 minute or try again later.");
         addLog("FATAL: API Quota Exceeded (429). Please check your Google AI Studio limits.");
+      } else if (isDemandError) {
+        toast.error("AI Busy: The model is currently experiencing high demand. Please wait a few seconds and try again.", {
+          duration: 10000,
+        });
+        addLog("RETRY: Model is under high demand (503). Retrying might help in a few seconds.");
       } else {
         toast.error(`System Logic Error: ${errorMsg}`, {
           duration: 10000,
@@ -703,21 +711,41 @@ Respond in strict JSON format.` }
           <div className="flex-1 overflow-y-auto px-4 lg:px-8 py-8 lg:py-12 custom-scrollbar">
             <div className="max-w-2xl mx-auto pb-24 lg:pb-0">
             {!videoData.analysis && !isAnalyzing ? (
-              <div className="h-full flex flex-col items-center justify-center py-32 text-center">
-                 <div className="relative mb-8">
-                    <div className="absolute inset-0 bg-blue-500/10 blur-3xl rounded-full animate-pulse" />
-                    <div className="w-16 h-16 bg-zinc-900 rounded-2xl border border-zinc-800 flex items-center justify-center relative z-10">
-                      <Sparkles className="w-8 h-8 text-blue-500 animate-pulse" />
-                    </div>
-                 </div>
-                 <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tight">AI Engine Booting</h2>
-                 <p className="text-zinc-500 text-xs max-w-[240px] mx-auto leading-relaxed">Synchronizing multimodal signals and generating professional narrative layers...</p>
-                 <div className="mt-8 flex items-center justify-center gap-3">
-                    <div className="h-0.5 w-12 bg-zinc-800" />
-                    <span className="text-[10px] font-mono text-zinc-600">AUTO_INIT_ACTIVE</span>
-                    <div className="h-0.5 w-12 bg-zinc-800" />
-                 </div>
-              </div>
+              videoData.error ? (
+                <div className="h-full flex flex-col items-center justify-center py-32 text-center">
+                  <div className="w-16 h-16 bg-red-500/10 rounded-2xl border border-red-500/20 flex items-center justify-center mb-8">
+                    <AlertCircle className="w-8 h-8 text-red-500" />
+                  </div>
+                  <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tight">System Disruption</h2>
+                  <p className="text-zinc-500 text-xs max-w-[320px] mx-auto leading-relaxed mb-6">{videoData.error}</p>
+                  <Button 
+                    onClick={() => {
+                      setVideoData(prev => prev ? { ...prev, error: undefined } : null);
+                      runAnalysis();
+                    }} 
+                    className="bg-red-500 hover:bg-red-600 text-white font-black text-[9px] uppercase tracking-widest h-9 px-8"
+                  >
+                    <RefreshCcw className="w-3 h-3 mr-2" />
+                    Retry Analysis
+                  </Button>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center py-32 text-center">
+                   <div className="relative mb-8">
+                      <div className="absolute inset-0 bg-blue-500/10 blur-3xl rounded-full animate-pulse" />
+                      <div className="w-16 h-16 bg-zinc-900 rounded-2xl border border-zinc-800 flex items-center justify-center relative z-10">
+                        <Sparkles className="w-8 h-8 text-blue-500 animate-pulse" />
+                      </div>
+                   </div>
+                   <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tight">AI Engine Booting</h2>
+                   <p className="text-zinc-500 text-xs max-w-[240px] mx-auto leading-relaxed">Synchronizing multimodal signals and generating professional narrative layers...</p>
+                   <div className="mt-8 flex items-center justify-center gap-3">
+                      <div className="h-0.5 w-12 bg-zinc-800" />
+                      <span className="text-[10px] font-mono text-zinc-600">AUTO_INIT_ACTIVE</span>
+                      <div className="h-0.5 w-12 bg-zinc-800" />
+                   </div>
+                </div>
+              )
             ) : isAnalyzing ? (
               <div className="space-y-12 py-8">
                  {[1, 2, 3].map(i => (
