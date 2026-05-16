@@ -336,9 +336,8 @@ function StudioDashboard() {
   const runAnalysis = async () => {
     if (!videoData || !videoData.frames) return;
     setIsAnalyzing(true);
-    addLog("Initiating generative analysis...");
-    addLog("Connecting to Gemini Intelligence Engine...");
-    toast.info("Intelligence process initiated...");
+    addLog("Phase 1: Visual Audit (Gemini 1.5 Flash)...");
+    toast.info("Visual intelligence active...");
 
     try {
       const apiKey = process.env.GEMINI_API_KEY;
@@ -358,11 +357,25 @@ function StudioDashboard() {
         };
       });
 
-      addLog("Payload vectorized. Analyzing visual context...");
+      addLog("Analyzing visual context with Flash...");
 
-      const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        config: {
+      // Step 1: Visual Ingestion with Flash
+      const visualModel = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const visualPrompt = "Analyze these video frames. Provide a highly detailed visual audit focusing on: primary actions, environment, emotional shifts, specific objects of interest, and any potential narrative tension. Write this as a technical report for a creative director.";
+      
+      const visualResult = await visualModel.generateContent([...frameParts, visualPrompt]);
+      const visualAudit = visualResult.response.text();
+      
+      addLog("Visual Audit Complete. Syncing with Creative Engine...");
+      addLog("Phase 2: Narrative Synthesis (Gemini 1.5 Pro)...");
+
+      // Step 2: Creative Synthesis with Pro
+      const creativeModel = ai.getGenerativeModel({ 
+        model: "gemini-1.5-pro" 
+      });
+
+      const response = await creativeModel.generateContent({
+        generationConfig: {
             responseMimeType: "application/json",
             responseSchema: {
                 type: Type.OBJECT,
@@ -414,23 +427,22 @@ function StudioDashboard() {
         },
         contents: [
           {
+            role: "user",
             parts: [
-              ...frameParts,
-              { text: "Analyze this video like a professional YouTube Commentary creator. Understand context, emotions, and viral potential. Generate a full commentary script, detailed editing plan, catchy titles, and SEO description. Sound human, cinematic, and use suspense." }
+              { text: `Based on this Visual Intelligence Report: \"${visualAudit}\", generate a professional YouTube Commentary package. Focus on creating high-retention hooks and viral appeal. Sound human and cinematic. Return the response in strict JSON format.` }
             ]
           }
         ]
       });
 
-      const text = response.text;
+      const text = response.response.text();
       if (!text) {
-        throw new Error("Empty response from AI engine");
+        throw new Error("Empty response from Narrative engine");
       }
 
-      addLog("Narrative synthesis complete. Syncing components...");
       const result = JSON.parse(text);
       setVideoData({ ...videoData, ...result });
-      addLog("Signal synced successfully. Creative session initialized.");
+      addLog("Creative synthesis successful. Session live.");
       toast.success("Intelligence cycle complete.");
     } catch (error: any) {
       console.error("Analysis failure:", error);
@@ -438,7 +450,6 @@ function StudioDashboard() {
       toast.error(`System Logic Error: ${errorMsg.substring(0, 50)}...`);
       addLog(`FATAL: Analysis failed. ${errorMsg}`);
       
-      // Prevent further retries by setting an error state
       setVideoData(prev => prev ? { ...prev, error: errorMsg } : null);
       
       if (errorMsg.includes("API_KEY") || errorMsg.includes("403") || errorMsg.includes("400")) {
