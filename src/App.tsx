@@ -122,7 +122,7 @@ function UploadSection() {
         progress: 100,
         videoPath: videoUrl,
         frames: frames,
-        logs: ["Local session synchronized", "No server-side persistence active"],
+        logs: [...logs, "Local session synchronized", "Handoff to intelligence engine..."],
       };
 
       setUploadProgress(100);
@@ -318,7 +318,7 @@ function StudioDashboard() {
 
   useEffect(() => {
     // Automatically trigger analysis if data exists but no analysis is performed yet
-    if (videoData && videoData.status === "completed" && !videoData.analysis && !isAnalyzing) {
+    if (videoData && videoData.status === "completed" && !videoData.analysis && !isAnalyzing && !videoData.error) {
       runAnalysis();
     }
   }, [videoData, isAnalyzing]);
@@ -360,12 +360,9 @@ function StudioDashboard() {
 
       addLog("Payload vectorized. Analyzing visual context...");
 
-      const model = ai.getGenerativeModel({ 
-        model: "gemini-1.5-flash", // Using Flash for maximum speed
-      });
-
-      const response = await model.generateContent({
-        generationConfig: {
+      const response = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        config: {
             responseMimeType: "application/json",
             responseSchema: {
                 type: Type.OBJECT,
@@ -417,7 +414,6 @@ function StudioDashboard() {
         },
         contents: [
           {
-            role: "user",
             parts: [
               ...frameParts,
               { text: "Analyze this video like a professional YouTube Commentary creator. Understand context, emotions, and viral potential. Generate a full commentary script, detailed editing plan, catchy titles, and SEO description. Sound human, cinematic, and use suspense." }
@@ -426,7 +422,7 @@ function StudioDashboard() {
         ]
       });
 
-      const text = response.response.text();
+      const text = response.text;
       if (!text) {
         throw new Error("Empty response from AI engine");
       }
@@ -442,8 +438,11 @@ function StudioDashboard() {
       toast.error(`System Logic Error: ${errorMsg.substring(0, 50)}...`);
       addLog(`FATAL: Analysis failed. ${errorMsg}`);
       
+      // Prevent further retries by setting an error state
+      setVideoData(prev => prev ? { ...prev, error: errorMsg } : null);
+      
       if (errorMsg.includes("API_KEY") || errorMsg.includes("403") || errorMsg.includes("400")) {
-        setVideoData(prev => prev ? { ...prev, error: "Authentication/Quota Failure. Check GEMINI_API_KEY." } : null);
+        toast.error("Check your GEMINI_API_KEY in the Secrets panel.");
       }
     } finally {
       setIsAnalyzing(false);
