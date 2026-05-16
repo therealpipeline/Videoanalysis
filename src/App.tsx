@@ -49,7 +49,7 @@ export default function App() {
   return (
     <AppContext.Provider value={{ videoData, setVideoData, isAnalyzing, setIsAnalyzing }}>
       <div className="flex flex-col h-screen w-full bg-[#09090b] text-[11px] overflow-hidden selection:bg-blue-600/30 selection:text-white antialiased font-sans">
-        <Toaster theme="dark" position="top-right" richColors />
+        <Toaster theme="dark" position="top-right" richColors closeButton />
         
         {/* Simplified Header */}
         <header className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900/40 shrink-0 backdrop-blur-md">
@@ -447,7 +447,9 @@ function StudioDashboard() {
         toast.error("Quota Exceeded: Your Free Tier Gemini API key has reached its limit. Please wait 1 minute or try a new API key.");
         addLog("FATAL: API Quota Exceeded (429). Please check your Google AI Studio limits.");
       } else {
-        toast.error(`System Logic Error: ${errorMsg.substring(0, 50)}...`);
+        toast.error(`System Logic Error: ${errorMsg}`, {
+          duration: 10000,
+        });
         addLog(`FATAL: Analysis failed. ${errorMsg}`);
       }
       
@@ -648,11 +650,17 @@ function StudioDashboard() {
                        ))}
                        <div ref={logEndRef} />
                        {videoData.error && (
-                      <div className="mt-8 p-4 bg-red-500/5 border border-red-500/20 text-red-500 rounded-lg">
-                        <p className="font-bold uppercase tracking-widest text-[9px] mb-1">Fatal Exception Trace</p>
-                        <p className="text-sm font-sans">{videoData.error}</p>
-                      </div>
-                    )}
+                        <div className="mt-8 p-4 bg-red-500/5 border border-red-500/20 text-red-500 rounded-lg relative group/err">
+                          <button 
+                            onClick={() => setVideoData(prev => prev ? { ...prev, error: undefined } : null)}
+                            className="absolute top-2 right-2 text-red-500/40 hover:text-red-500 transition-colors"
+                          >
+                            <AlertCircle className="w-4 h-4" />
+                          </button>
+                          <p className="font-bold uppercase tracking-widest text-[9px] mb-1">Fatal Exception Trace</p>
+                          <p className="text-sm font-sans break-words">{videoData.error}</p>
+                        </div>
+                      )}
                   </div>
                </div>
             ) : activeTab === "titles" ? (
