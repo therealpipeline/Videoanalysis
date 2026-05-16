@@ -364,29 +364,9 @@ function StudioDashboard() {
         };
       });
 
-      addLog("Analyzing visual context with Flash...");
+      addLog("Phase: Creative Engine Sync (Gemini 3.1 Pro)...");
+      addLog("Analyzing visual signals and synthesizing narrative...");
 
-      // Step 1: Visual Ingestion with Flash
-      const visualResponse = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: [{
-          role: "user",
-          parts: [
-            ...frameParts,
-            { text: "Analyze these video frames. Provide a highly detailed visual audit focusing on: primary actions, environment, emotional shifts, specific objects of interest, and any potential narrative tension. Write this as a technical report for a creative director." }
-          ]
-        }]
-      });
-
-      const visualAudit = visualResponse.text;
-      if (!visualAudit) {
-        throw new Error("Phase 1: Visual audit failed.");
-      }
-      
-      addLog("Visual Audit Complete. Syncing with Creative Engine...");
-      addLog("Phase 2: Narrative Synthesis (Gemini 3.1 Pro)...");
-
-      // Step 2: Creative Synthesis with Pro
       const response = await ai.models.generateContent({
         model: "gemini-3.1-pro-preview",
         config: {
@@ -443,7 +423,8 @@ function StudioDashboard() {
           {
             role: "user",
             parts: [
-              { text: `Based on this Visual Intelligence Report: "${visualAudit}", generate a professional YouTube Commentary package. Focus on creating high-retention hooks and viral appeal. Sound human and cinematic. Return the response in strict JSON format.` }
+              ...frameParts,
+              { text: "Analyze these video frames like a professional YouTube Commentary creator. Understand context, emotions, and viral potential. Generate a full commentary package: detailed analysis, a cinematic script (hook, intro, breakdown, escalation, reveal, outro), a precise editing plan with timestamps, catchy titles, and an SEO description. Sound human, suspenseful, and clever. Respond in strict JSON format." }
             ]
           }
         ]
