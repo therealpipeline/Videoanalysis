@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createContext, useContext, useState, useEffect } from "react";
-import { Upload, AlertCircle, Sparkles, Share2, Download, FileJson } from "lucide-react";
+import { Upload, AlertCircle, Sparkles, Share2, Download, FileJson, Plus, RefreshCcw } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -563,8 +563,22 @@ function StudioDashboard() {
                 </button>
               ))}
             </nav>
-            <div className="hidden sm:block text-[9px] font-mono text-zinc-600 tracking-tighter uppercase whitespace-nowrap px-4 border-l border-zinc-800 ml-4">
-              Cycle: {videoData.status}
+            <div className="flex items-center gap-2 px-4 border-l border-zinc-800 ml-4">
+              <div className="hidden sm:block text-[9px] font-mono text-zinc-600 tracking-tighter uppercase whitespace-nowrap">
+                Cycle: {videoData.status}
+              </div>
+              <button 
+                onClick={() => {
+                  setVideoData(null);
+                  setSessionLogs([]);
+                  setIsAnalyzing(false);
+                  setActiveTab("analysis");
+                }}
+                className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded text-[9px] font-bold uppercase tracking-widest transition-all"
+              >
+                <Plus className="w-3 h-3" />
+                <span>New Session</span>
+              </button>
             </div>
           </header>
 
