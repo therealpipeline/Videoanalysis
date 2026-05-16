@@ -322,32 +322,31 @@ function StudioDashboard() {
   };
 
   const runAnalysis = async () => {
-    if (!videoData) return;
+    if (!videoData || !videoData.frames) return;
     setIsAnalyzing(true);
+    setLogs(prev => [...prev, "Initiating generative analysis...", "Connecting to Gemini 1.5 Pro..."]);
     toast.info("Intelligence process initiated...");
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const frameParts = await Promise.all(videoData.frames.slice(0, 8).map(async (frameUrl) => {
-        try {
-          const res = await fetch(frameUrl);
-          const blob = await res.blob();
-          return new Promise<any>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              resolve({
-                inlineData: {
-                  data: (reader.result as string).split(',')[1],
-                  mimeType: "image/jpeg"
-                }
-              });
-            };
-            reader.readAsDataURL(blob);
-          });
-        } catch (e) {
-          return null;
-        }
-      }));
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY is missing. Please set it in your environment variables/Vercel settings.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const frameParts = videoData.frames.slice(0, 8).map((frameUrl) => {
+        // frameUrl is data:image/jpeg;base64,xxxx
+        const base64Data = frameUrl.split(',')[1];
+        return {
+          inlineData: {
+            data: base64Data,
+            mimeType: "image/jpeg"
+          }
+        };
+      });
+
+      setLogs(prev => [...prev, "Payload vectorized", "Awaiting narrative synthesis..."]);
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -403,18 +402,30 @@ function StudioDashboard() {
         },
         contents: {
           parts: [
-            ...frameParts.filter(p => p !== null),
+            ...frameParts,
             { text: "Analyze this video like a professional YouTube Commentary creator. Understand context, emotions, and viral potential. Generate a full commentary script, detailed editing plan, catchy titles, and SEO description. Sound human, cinematic, and use suspense." }
           ]
         }
       });
 
-      const result = JSON.parse(response.text || "{}");
+      if (!response.text) {
+        throw new Error("Empty response from AI engine");
+      }
+
+      const result = JSON.parse(response.text);
       setVideoData({ ...videoData, ...result });
+      setLogs(prev => [...prev, "Narrative synthesis complete", "Signal synced successfully"]);
       toast.success("Intelligence cycle complete.");
-    } catch (error) {
-      console.error(error);
-      toast.error("Process failed. Retrying...");
+    } catch (error: any) {
+      console.error("Analysis failure:", error);
+      const errorMsg = error.message || "Unknown disruption";
+      toast.error(`System Logic Error: ${errorMsg.substring(0, 50)}...`);
+      setLogs(prev => [...prev, `FATAL: Analysis failed. ${errorMsg}`]);
+      
+      // If it's a model error or key error, we stop retrying by setting a flag or error state
+      if (errorMsg.includes("API_KEY") || errorMsg.includes("403") || errorMsg.includes("400")) {
+        setVideoData(prev => prev ? { ...prev, error: "Authentication/Quota Failure. Check GEMINI_API_KEY." } : null);
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -508,7 +519,7 @@ function StudioDashboard() {
                 { id: "analysis", label: "Analysis" },
                 { id: "script", label: "Script" },
                 { id: "editing", label: "Editing" },
-                { id: "logs", label: "Logs" }
+                { id: "titles", label: "Titles" }
               ].map(tab => (
                 <button 
                   key={tab.id}
@@ -586,22 +597,65 @@ function StudioDashboard() {
                      </div>
                   </div>
                </div>
-            ) : activeTab === "logs" ? (
-               <div className="space-y-6 animate-in fade-in duration-500">
-                  <h2 className="text-2xl font-bold tracking-tight mb-8 capitalize">System Diagnostics</h2>
-                  <div className="bg-zinc-950/50 border border-zinc-800 rounded-lg p-6 font-mono text-[10px] space-y-2 select-text min-h-[400px]">
-                     {videoData.logs?.map((log, i) => (
-                       <div key={i} className="flex gap-4 group">
-                         <span className="text-zinc-600 shrink-0 w-16">[{i.toString().padStart(3, '0')}]</span>
-                         <span className="text-zinc-300 group-hover:text-blue-400 transition-colors whitespace-pre-wrap">{log}</span>
-                       </div>
-                     ))}
-                     {videoData.error && (
-                       <div className="mt-8 p-4 bg-red-500/5 border border-red-500/20 text-red-500 rounded">
-                         <p className="font-bold uppercase tracking-widest text-[9px] mb-1">Fatal Exception Trace</p>
-                         <p className="text-sm font-sans">{videoData.error}</p>
-                       </div>
-                     )}
+            ) : activeTab === "titles" ? (
+               <div className="space-y-10 animate-in fade-in duration-500">
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+                    <h2 className="text-2xl font-bold tracking-tight capitalize">Marketing Assets</h2>
+                    <div className="flex gap-2">
+                       <Button size="sm" variant="outline" className="h-7 text-[9px] uppercase font-bold" onClick={() => {
+                          const data = {
+                            titles: videoData.titles,
+                            description: videoData.description,
+                            viralTriggers: videoData.analysis?.viralTriggers
+                          };
+                          downloadAsText("marketing_assets.json", JSON.stringify(data, null, 2));
+                          toast.success("JSON Asset ready.");
+                       }}>
+                         <FileJson className="w-3 h-3 mr-1.5" />
+                         Export JSON
+                       </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest">Optimized Titles</h3>
+                      <div className="grid gap-3">
+                        {videoData.titles?.map((title, i) => (
+                          <div 
+                            key={i} 
+                            className="p-4 bg-zinc-900/40 border border-zinc-800 rounded-xl group cursor-pointer hover:border-blue-500/50 transition-all flex justify-between items-center"
+                            onClick={() => {
+                                navigator.clipboard.writeText(title);
+                                toast.success("Copied to clipboard");
+                            }}
+                          >
+                            <span className="text-white text-lg font-medium leading-tight">{title}</span>
+                            <span className="text-[9px] text-zinc-600 font-mono opacity-0 group-hover:opacity-100 transition-opacity">COPY</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-black text-zinc-500 uppercase tracking-widest">Viral Description / SEO</h3>
+                      <div className="p-6 bg-zinc-900/40 border border-zinc-800 rounded-xl relative group">
+                        <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap antialiased">
+                          {videoData.description}
+                        </p>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="absolute top-4 right-4 h-6 px-2 text-[9px] text-zinc-500 hover:text-white"
+                          onClick={() => {
+                            navigator.clipboard.writeText(videoData.description || "");
+                            toast.success("Description copied");
+                          }}
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                </div>
             ) : activeTab === "script" ? (
@@ -784,7 +838,7 @@ function StudioDashboard() {
             { id: "output", label: "Export", icon: AlertCircle },
           ].map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id || (item.id === "analysis" && ["script", "editing", "logs"].includes(activeTab) && activeTab !== "output" && activeTab !== "preview");
+            const isActive = activeTab === item.id || (item.id === "analysis" && ["script", "editing", "titles"].includes(activeTab) && activeTab !== "output" && activeTab !== "preview");
             return (
               <button
                 key={item.id}
