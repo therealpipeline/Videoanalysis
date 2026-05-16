@@ -20,9 +20,8 @@ interface VideoData {
   videoPath?: string;
   audioPath?: string;
   frames: string[];
-  metadata?: any;
-  error?: string;
-  logs?: string[];
+  emotions?: string[];
+  viralTriggers?: string[];
   analysis?: any;
   script?: any;
   editingPlan?: any;
@@ -375,23 +374,9 @@ function StudioDashboard() {
             responseSchema: {
                 type: Type.OBJECT,
                 properties: {
-                    analysis: {
-                        type: Type.OBJECT,
-                        properties: {
-                            context: { type: Type.STRING },
-                            summary: { type: Type.STRING },
-                            emotions: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            keyMoments: { type: Type.ARRAY, items: { 
-                                type: Type.OBJECT,
-                                properties: {
-                                    time: { type: Type.STRING },
-                                    event: { type: Type.STRING },
-                                    significance: { type: Type.STRING }
-                                }
-                             } },
-                            viralTriggers: { type: Type.ARRAY, items: { type: Type.STRING } }
-                        }
-                    },
+                    analysis: { type: Type.STRING },
+                    emotions: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    viralTriggers: { type: Type.ARRAY, items: { type: Type.STRING } },
                     script: { type: Type.STRING },
                     editingPlan: {
                         type: Type.ARRAY,
@@ -429,6 +414,75 @@ function StudioDashboard() {
               ...frameParts,
               { text: `Analyze these video frames and generate the full commentary package (analysis, script, editingPlan, globalNotes, titles, description).
 
+FOR THE VIDEO ANALYSIS (analysis property):
+You are an elite video analyst built to extract the deepest possible understanding 
+of a video clip. Your analysis will be used downstream to generate a viral commentary 
+script, a professional editing plan, and an SEO-optimized title and description.
+The quality of everything that comes after depends entirely on the depth and accuracy 
+of what you extract here. Be obsessive. Be precise. Miss nothing.
+
+════════════════════════════════════════════
+SECTION 1 — SCENE ESTABLISHMENT
+════════════════════════════════════════════
+Answer all of the following before anything else:
+- ENVIRONMENT (Where, time, weather, camera type, mood)
+- PEOPLE (Count, labels like Person A, Person B, identifiable details)
+- OBJECTS AND ENVIRONMENT (Significant objects, condition, vehicles)
+
+════════════════════════════════════════════
+SECTION 2 — FULL TIMESTAMP BREAKDOWN
+════════════════════════════════════════════
+Break the video into every meaningful moment (1-3 second intervals). For each:
+[TIMESTAMP — 00:00 to 00:03]
+ACTION: Physical description
+PEOPLE: Position, body language, expression
+CAMERA: Movement, shake, pan, zoom
+AUDIO CUE: Quality and intensity of sound
+VISUAL INTENSITY: (calm, building, peak, aftermath)
+KEY DETAIL: Single most important thing
+
+════════════════════════════════════════════
+SECTION 3 — EVENT ANALYSIS
+════════════════════════════════════════════
+- THE CORE EVENT: (2-3 sentences)
+- THE INCITING MOMENT: (Trigger timestamp)
+- THE PEAK MOMENT: (Single most intense moment, timestamp)
+- THE AFTERMATH: (What happens after the peak)
+
+════════════════════════════════════════════
+SECTION 4 — HUMAN BEHAVIOR ANALYSIS
+════════════════════════════════════════════
+For every person: (Start behavior, reactions, body language, Standout actions, role)
+RELATIONSHIP DYNAMICS: Interactions, help/freeze/run, most human moment.
+
+════════════════════════════════════════════
+SECTION 5 — AUDIO ANALYSIS
+════════════════════════════════════════════
+- Landscape description, distinct sound events with timestamps, volume/impact, volume spikes, silences, voices/tones.
+
+════════════════════════════════════════════
+SECTION 6 — VIRAL POTENTIAL ANALYSIS
+════════════════════════════════════════════
+- EMOTIONAL TRIGGERS: List every emotion, strongest trigger, intensity scale (1-10).
+- SHAREABILITY FACTORS: Luck, misfortune, heroism, chaos, rarity.
+- COMMENTARY POTENTIAL: Best angle, missed details, human truth, key question.
+- HOOK IDENTIFICATION: Single best moment for a hook, exact timestamp.
+
+════════════════════════════════════════════
+SECTION 7 — NARRATIVE SUMMARY
+════════════════════════════════════════════
+- FULL CONTEXT: Written as a complete story from first frame to last.
+- NARRATIVE ARC: Setup, conflict, resolution, emotional journey.
+- THE ONE LINE TRUTH: Summarize entire video in one sentence.
+
+OUTPUT RULES FOR ANALYSIS:
+- Complete every section fully.
+- Be specific with timestamps.
+- Use plain clear language.
+- This analysis is the foundation of the entire pipeline.
+- The 'analysis' property MUST be PLAIN TEXT ONLY.
+
+FOR THE COMMENTARY SCRIPT (script property):
 You are an elite commentary scriptwriter specializing in short-form viral content.
 Your job is to write a full commentary script for a 30 to 40 second short-form video that will be spoken over this clip.
 
@@ -574,10 +628,10 @@ Respond in strict JSON format.` }
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-zinc-600 text-[9px] font-black uppercase tracking-widest">Signal Taxonomy</span>
-                <Badge variant="secondary" className="bg-blue-500/10 text-blue-400 border-none text-[8px]">{videoData.analysis?.emotions?.length || 0} Layers</Badge>
+                <Badge variant="secondary" className="bg-blue-500/10 text-blue-400 border-none text-[8px]">{videoData.emotions?.length || 0} Layers</Badge>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {videoData.analysis?.emotions?.slice(0, 6).map((e: string, i: number) => (
+                {videoData.emotions?.slice(0, 6).map((e: string, i: number) => (
                   <Badge key={i} variant="outline" className="bg-zinc-900/50 text-zinc-400 border-zinc-800 text-[9px] py-0.5 px-2 rounded-full">
                     {e}
                   </Badge>
@@ -675,37 +729,19 @@ Respond in strict JSON format.` }
               </div>
             ) : activeTab === "analysis" ? (
                <div className="space-y-8 animate-in fade-in duration-700">
-                  <div className="space-y-4">
-                    <h2 className="text-2xl font-bold tracking-tight text-white capitalize">System Context</h2>
-                    <p className="text-zinc-400 leading-relaxed text-sm antialiased">{videoData.analysis?.context}</p>
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+                    <h2 className="text-2xl font-bold tracking-tight text-white capitalize">Tactical Video Analysis</h2>
+                    <Button size="sm" variant="outline" className="h-7 bg-blue-600/10 border-blue-500/20 text-blue-400 text-[9px] uppercase font-bold hover:bg-blue-600/20" onClick={() => {
+                        downloadAsText("video_analysis.txt", videoData.analysis || "");
+                    }}>
+                      <Download className="w-3 h-3 mr-1.5" />
+                      Download Analysis
+                    </Button>
                   </div>
-                  <div className="space-y-4">
-                    <h2 className="text-2xl font-bold tracking-tight text-zinc-400 capitalize">Narrative Arc</h2>
-                    <p className="text-white text-lg font-light leading-relaxed antialiased">{videoData.analysis?.summary}</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-                     <div className="p-4 bg-zinc-900/40 border border-zinc-800 rounded-lg">
-                       <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3">Key Moments</h4>
-                       <div className="space-y-3">
-                          {videoData.analysis?.keyMoments?.slice(0, 4).map((m: any, i: number) => (
-                             <div key={i} className="flex gap-3 text-xs">
-                               <span className="text-blue-500 font-mono text-[10px] pt-1">{m.time}</span>
-                               <span className="text-zinc-300 leading-tight">{m.event}</span>
-                             </div>
-                          ))}
-                       </div>
-                     </div>
-                     <div className="p-4 bg-zinc-900/40 border border-zinc-800 rounded-lg">
-                       <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3">Viral Triggers</h4>
-                       <div className="space-y-2">
-                          {videoData.analysis?.viralTriggers?.map((v: string, i: number) => (
-                             <div key={i} className="flex items-center gap-2 text-[11px] text-emerald-400">
-                                <div className="w-1 h-1 rounded-full bg-emerald-500" />
-                                <span>{v}</span>
-                             </div>
-                          ))}
-                       </div>
-                     </div>
+                  <div className="p-6 bg-zinc-900/20 border border-zinc-800/50 rounded-2xl">
+                    <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap font-sans antialiased selection:bg-blue-600/30">
+                      {videoData.analysis}
+                    </p>
                   </div>
                </div>
             ) : activeTab === "logs" ? (
@@ -747,11 +783,11 @@ Respond in strict JSON format.` }
                     <h2 className="text-2xl font-bold tracking-tight capitalize">Marketing Assets</h2>
                     <div className="flex gap-2">
                        <Button size="sm" variant="outline" className="h-7 text-[9px] uppercase font-bold" onClick={() => {
-                          const data = {
-                            titles: videoData.titles,
-                            description: videoData.description,
-                            viralTriggers: videoData.analysis?.viralTriggers
-                          };
+                             const data = {
+                               titles: videoData.titles,
+                               description: videoData.description,
+                               viralTriggers: videoData.viralTriggers
+                             };
                           downloadAsText("marketing_assets.json", JSON.stringify(data, null, 2));
                           toast.success("JSON Asset ready.");
                        }}>
@@ -939,7 +975,7 @@ Respond in strict JSON format.` }
                       titles: videoData.titles,
                       description: videoData.description,
                       metadata: {
-                        viralTriggers: videoData.analysis?.viralTriggers,
+                        viralTriggers: videoData.viralTriggers,
                         efficiencyScore: "84%"
                       }
                     };
@@ -1006,7 +1042,7 @@ Respond in strict JSON format.` }
                        <span className="text-[9px] font-black uppercase tracking-widest">Studio Pro-Tip</span>
                     </div>
                     <p className="text-zinc-500 text-[10px] leading-relaxed relative z-10 tracking-tight">
-                       {videoData.analysis?.viralTriggers?.[0] ? `Our heuristic model predicts \"${videoData.analysis.viralTriggers[0]}\" as the high-impact focal point.` : "Running signal analysis for creative guidance..."}
+                       {videoData.viralTriggers?.[0] ? `Our heuristic model predicts \"${videoData.viralTriggers[0]}\" as the high-impact focal point.` : "Running signal analysis for creative guidance..."}
                     </p>
                  </div>
 
