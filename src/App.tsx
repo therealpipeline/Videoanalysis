@@ -303,6 +303,18 @@ function StudioDashboard() {
   const { videoData, setVideoData, isAnalyzing, setIsAnalyzing } = useContext(AppContext);
   const [activeTab, setActiveTab] = useState("analysis");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sessionLogs, setSessionLogs] = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    setSessionLogs(prev => [...prev, msg]);
+    setVideoData(prev => prev ? { ...prev, logs: [...(prev.logs || []), msg] } : null);
+  };
+
+  useEffect(() => {
+    if (videoData && videoData.logs && sessionLogs.length === 0) {
+      setSessionLogs(videoData.logs);
+    }
+  }, [videoData]);
 
   useEffect(() => {
     // Automatically trigger analysis if data exists but no analysis is performed yet
@@ -324,7 +336,8 @@ function StudioDashboard() {
   const runAnalysis = async () => {
     if (!videoData || !videoData.frames) return;
     setIsAnalyzing(true);
-    setLogs(prev => [...prev, "Initiating generative analysis...", "Connecting to Gemini 1.5 Pro..."]);
+    addLog("Initiating generative analysis...");
+    addLog("Connecting to Gemini Intelligence Engine...");
     toast.info("Intelligence process initiated...");
 
     try {
@@ -336,7 +349,6 @@ function StudioDashboard() {
       const ai = new GoogleGenAI({ apiKey });
       
       const frameParts = videoData.frames.slice(0, 8).map((frameUrl) => {
-        // frameUrl is data:image/jpeg;base64,xxxx
         const base64Data = frameUrl.split(',')[1];
         return {
           inlineData: {
@@ -346,11 +358,14 @@ function StudioDashboard() {
         };
       });
 
-      setLogs(prev => [...prev, "Payload vectorized", "Awaiting narrative synthesis..."]);
+      addLog("Payload vectorized. Analyzing visual context...");
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        config: {
+      const model = ai.getGenerativeModel({ 
+        model: "gemini-1.5-flash", // Using Flash for maximum speed
+      });
+
+      const response = await model.generateContent({
+        generationConfig: {
             responseMimeType: "application/json",
             responseSchema: {
                 type: Type.OBJECT,
@@ -400,29 +415,33 @@ function StudioDashboard() {
                 }
             }
         },
-        contents: {
-          parts: [
-            ...frameParts,
-            { text: "Analyze this video like a professional YouTube Commentary creator. Understand context, emotions, and viral potential. Generate a full commentary script, detailed editing plan, catchy titles, and SEO description. Sound human, cinematic, and use suspense." }
-          ]
-        }
+        contents: [
+          {
+            role: "user",
+            parts: [
+              ...frameParts,
+              { text: "Analyze this video like a professional YouTube Commentary creator. Understand context, emotions, and viral potential. Generate a full commentary script, detailed editing plan, catchy titles, and SEO description. Sound human, cinematic, and use suspense." }
+            ]
+          }
+        ]
       });
 
-      if (!response.text) {
+      const text = response.response.text();
+      if (!text) {
         throw new Error("Empty response from AI engine");
       }
 
-      const result = JSON.parse(response.text);
+      addLog("Narrative synthesis complete. Syncing components...");
+      const result = JSON.parse(text);
       setVideoData({ ...videoData, ...result });
-      setLogs(prev => [...prev, "Narrative synthesis complete", "Signal synced successfully"]);
+      addLog("Signal synced successfully. Creative session initialized.");
       toast.success("Intelligence cycle complete.");
     } catch (error: any) {
       console.error("Analysis failure:", error);
       const errorMsg = error.message || "Unknown disruption";
       toast.error(`System Logic Error: ${errorMsg.substring(0, 50)}...`);
-      setLogs(prev => [...prev, `FATAL: Analysis failed. ${errorMsg}`]);
+      addLog(`FATAL: Analysis failed. ${errorMsg}`);
       
-      // If it's a model error or key error, we stop retrying by setting a flag or error state
       if (errorMsg.includes("API_KEY") || errorMsg.includes("403") || errorMsg.includes("400")) {
         setVideoData(prev => prev ? { ...prev, error: "Authentication/Quota Failure. Check GEMINI_API_KEY." } : null);
       }
@@ -519,7 +538,8 @@ function StudioDashboard() {
                 { id: "analysis", label: "Analysis" },
                 { id: "script", label: "Script" },
                 { id: "editing", label: "Editing" },
-                { id: "titles", label: "Titles" }
+                { id: "titles", label: "Titles" },
+                { id: "logs", label: "Logs" }
               ].map(tab => (
                 <button 
                   key={tab.id}
@@ -595,6 +615,32 @@ function StudioDashboard() {
                           ))}
                        </div>
                      </div>
+                  </div>
+               </div>
+            ) : activeTab === "logs" ? (
+              <div className="space-y-6 animate-in fade-in duration-500">
+                 <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+                   <h2 className="text-2xl font-bold tracking-tight capitalize">Live Diagnostics</h2>
+                   <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                      <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">Active Stream</span>
+                   </div>
+                 </div>
+                 <div className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-6 font-mono text-[10px] space-y-2 select-text min-h-[450px] overflow-y-auto custom-scrollbar">
+                    {sessionLogs.map((log, i) => (
+                      <div key={i} className="flex gap-4 group">
+                        <span className="text-zinc-600 shrink-0 w-16">[{i.toString().padStart(3, '0')}]</span>
+                        <span className={`transition-colors whitespace-pre-wrap ${log.includes('FATAL') ? 'text-red-400' : log.includes('SUCCESS') ? 'text-emerald-400' : 'text-zinc-300 group-hover:text-blue-400'}`}>
+                          {log}
+                        </span>
+                      </div>
+                    ))}
+                    {videoData.error && (
+                      <div className="mt-8 p-4 bg-red-500/5 border border-red-500/20 text-red-500 rounded-lg">
+                        <p className="font-bold uppercase tracking-widest text-[9px] mb-1">Fatal Exception Trace</p>
+                        <p className="text-sm font-sans">{videoData.error}</p>
+                      </div>
+                    )}
                   </div>
                </div>
             ) : activeTab === "titles" ? (
@@ -835,10 +881,11 @@ function StudioDashboard() {
             { id: "preview", label: "Media", icon: Upload },
             { id: "analysis", label: "Intel", icon: Sparkles },
             { id: "script", label: "Script", icon: Share2 },
-            { id: "output", label: "Export", icon: AlertCircle },
+            { id: "logs", label: "Logs", icon: AlertCircle },
+            { id: "output", label: "Export", icon: Download },
           ].map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id || (item.id === "analysis" && ["script", "editing", "titles"].includes(activeTab) && activeTab !== "output" && activeTab !== "preview");
+            const isActive = activeTab === item.id || (item.id === "analysis" && ["script", "editing", "titles", "logs"].includes(activeTab) && activeTab !== "output" && activeTab !== "preview");
             return (
               <button
                 key={item.id}
