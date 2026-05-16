@@ -304,11 +304,18 @@ function StudioDashboard() {
   const [activeTab, setActiveTab] = useState("analysis");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sessionLogs, setSessionLogs] = useState<string[]>([]);
+  const logEndRef = React.useRef<HTMLDivElement>(null);
 
   const addLog = (msg: string) => {
     setSessionLogs(prev => [...prev, msg]);
     setVideoData(prev => prev ? { ...prev, logs: [...(prev.logs || []), msg] } : null);
   };
+
+  useEffect(() => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [sessionLogs]);
 
   useEffect(() => {
     if (videoData && videoData.logs && sessionLogs.length === 0) {
@@ -361,7 +368,7 @@ function StudioDashboard() {
 
       // Step 1: Visual Ingestion with Flash
       const visualResponse = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-flash-latest",
         contents: [{
           role: "user",
           parts: [
@@ -377,11 +384,11 @@ function StudioDashboard() {
       }
       
       addLog("Visual Audit Complete. Syncing with Creative Engine...");
-      addLog("Phase 2: Narrative Synthesis (Gemini 1.5 Pro)...");
+      addLog("Phase 2: Narrative Synthesis (Gemini 3.1 Pro)...");
 
       // Step 2: Creative Synthesis with Pro
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-pro",
+        model: "gemini-3.1-pro-preview",
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -643,16 +650,17 @@ function StudioDashboard() {
                       <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">Active Stream</span>
                    </div>
                  </div>
-                 <div className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-6 font-mono text-[10px] space-y-2 select-text min-h-[450px] overflow-y-auto custom-scrollbar">
-                    {sessionLogs.map((log, i) => (
-                      <div key={i} className="flex gap-4 group">
-                        <span className="text-zinc-600 shrink-0 w-16">[{i.toString().padStart(3, '0')}]</span>
-                        <span className={`transition-colors whitespace-pre-wrap ${log.includes('FATAL') ? 'text-red-400' : log.includes('SUCCESS') ? 'text-emerald-400' : 'text-zinc-300 group-hover:text-blue-400'}`}>
-                          {log}
-                        </span>
-                      </div>
-                    ))}
-                    {videoData.error && (
+                    <div className="bg-zinc-950/50 border border-zinc-800 rounded-xl p-6 font-mono text-[10px] space-y-2 select-text h-[450px] overflow-y-auto custom-scrollbar">
+                       {sessionLogs.map((log, i) => (
+                         <div key={i} className="flex gap-4 group">
+                           <span className="text-zinc-600 shrink-0 w-16">[{i.toString().padStart(3, '0')}]</span>
+                           <span className={`transition-colors whitespace-pre-wrap ${log.includes('FATAL') ? 'text-red-400' : log.includes('SUCCESS') ? 'text-emerald-400' : 'text-zinc-300 group-hover:text-blue-400'}`}>
+                             {log}
+                           </span>
+                         </div>
+                       ))}
+                       <div ref={logEndRef} />
+                       {videoData.error && (
                       <div className="mt-8 p-4 bg-red-500/5 border border-red-500/20 text-red-500 rounded-lg">
                         <p className="font-bold uppercase tracking-widest text-[9px] mb-1">Fatal Exception Trace</p>
                         <p className="text-sm font-sans">{videoData.error}</p>
