@@ -284,7 +284,7 @@ function UploadSection() {
 
         <div className="grid grid-cols-3 gap-3">
            {[
-             { label: 'Model', val: 'Gemini 1.5 PRO' },
+             { label: 'Model', val: 'Gemini 3 Flash' },
              { label: 'Buffer', val: '512MB SGC' },
              { label: 'Engine', val: 'FFMPEG/V9' }
            ].map((stat, i) => (
@@ -343,7 +343,7 @@ function StudioDashboard() {
   const runAnalysis = async () => {
     if (!videoData || !videoData.frames) return;
     setIsAnalyzing(true);
-    addLog("Phase 1: Visual Audit (Gemini 1.5 Flash)...");
+    addLog("Phase 1: Visual Audit (Gemini 3 Flash)...");
     toast.info("Visual intelligence active...");
 
     try {
@@ -364,11 +364,11 @@ function StudioDashboard() {
         };
       });
 
-      addLog("Phase: Creative Engine Sync (Gemini 1.5 Flash)...");
+      addLog("Phase: Creative Engine Sync (Gemini 3 Flash)...");
       addLog("Analyzing visual signals and synthesizing narrative...");
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         config: {
             responseMimeType: "application/json",
             responseSchema: {
