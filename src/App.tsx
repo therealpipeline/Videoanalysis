@@ -96,7 +96,7 @@ function UploadSection() {
   const [isDragging, setIsDragging] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
     if (!file.type.startsWith("video/")) {
       toast.error("Video format required (.mp4, .mov, .webm)");
       return;
@@ -104,75 +104,84 @@ function UploadSection() {
 
     setIsUploading(true);
     setUploadProgress(0);
-    setLogs(["Connecting to synchronisation gateway..."]);
+    setLogs(["Initializing local session...", "Allocating browser buffers..."]);
     
-    const formData = new FormData();
-    formData.append("video", file);
-
-    const xhr = new XMLHttpRequest();
-    
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = (event.loaded / event.total) * 100;
-        setUploadProgress(Math.floor(percent * 0.3));
-        if (percent === 100) setLogs(prev => [...prev, "Payload delivery confirmed", "Waiting for server-side ingestion..."]);
-      }
-    };
-
-    xhr.onload = () => {
-      console.log(`>>> [XHR] Response received. Status: ${xhr.status}`);
+    try {
+      const videoUrl = URL.createObjectURL(file);
+      setLogs(prev => [...prev, "Media stream established", "Extracting visual indices..."]);
       
-      // Safety check: If the response is HTML, we likely hit a platform session redirect (Cookie Check)
-      if (xhr.responseText.trim().toLowerCase().startsWith("<!doctype html>")) {
-        console.error(">>> [XHR] Detected HTML instead of JSON. Platform Session redirect detected.");
-        const sessionMsg = "Browser Session Interrupted";
-        toast.error(`${sessionMsg}. Please open the app in a new tab.`);
-        setLogs(prev => [...prev, `FATAL: ${sessionMsg}. The platform preview window is blocking a security cookie.`, "FIX: Click the 'Open in new tab' button or use the Shared URL to bypass this."]);
-        setIsUploading(false);
-        return;
-      }
+      // Step 1: Extract frames in browser
+      const frames = await extractFrames(file, 6);
+      setUploadProgress(60);
+      setLogs(prev => [...prev, `Captured ${frames.length} intelligence frames`, "Finalizing ingestion..."]);
+      
+      // Step 2: Create local job data
+      const localJob: VideoData = {
+        jobId: `local-${Math.random().toString(36).substring(2, 10)}`,
+        status: "completed",
+        progress: 100,
+        videoPath: videoUrl,
+        frames: frames,
+        logs: ["Local session synchronized", "No server-side persistence active"],
+      };
 
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const { jobId } = JSON.parse(xhr.responseText);
-          setLogs(prev => [...prev, `Handshake successful. Internal ID: ${jobId}`]);
-          pollStatus(jobId);
-        } catch (e) {
-          console.error(">>> [XHR] JSON Parse Failure. Raw Response Preview:", xhr.responseText.substring(0, 100));
-          toast.error("Handshake Invalidation: Protocol mismatch");
-          setLogs(prev => [...prev, "FATAL: Protocol mismatch during handshake.", `RAW_BUFFER_START: ${xhr.responseText.substring(0, 100)}...`]);
-          setIsUploading(false);
+      setUploadProgress(100);
+      setTimeout(() => {
+        setVideoData(localJob);
+        setIsUploading(false);
+        toast.success("Intelligence Synchronized Locally");
+      }, 800);
+
+    } catch (error: any) {
+      console.error("Local processing failure:", error);
+      toast.error("Failed to process video in browser");
+      setIsUploading(false);
+      setLogs(prev => [...prev, `FATAL: ${error.message || "Browser execution context interrupted"}`]);
+    }
+  };
+
+  const extractFrames = (file: File, count: number): Promise<string[]> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const frames: string[] = [];
+      const url = URL.createObjectURL(file);
+
+      video.src = url;
+      video.muted = true;
+      video.playsInline = true;
+
+      video.onloadeddata = async () => {
+        const duration = video.duration;
+        const interval = duration / (count + 1);
+
+        for (let i = 1; i <= count; i++) {
+          video.currentTime = i * interval;
+          await new Promise(r => {
+            const onSeeked = () => {
+              video.removeEventListener('seeked', onSeeked);
+              r(null);
+            };
+            video.addEventListener('seeked', onSeeked);
+          });
+          
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+          frames.push(canvas.toDataURL('image/jpeg', 0.7));
+          setUploadProgress(prev => Math.min(95, 10 + (i / count) * 50));
         }
-      } else {
-        let errorMsg = "Synchronisation Failure";
-        const rawResponse = xhr.responseText.substring(0, 200);
-        console.error(">>> [XHR] Server Error. Raw:", rawResponse);
-        try {
-          const errorData = JSON.parse(xhr.responseText);
-          errorMsg = errorData.error || errorMsg;
-        } catch (e) {}
-        toast.error(`${errorMsg} (HTTP ${xhr.status})`);
-        setIsUploading(false);
-        setLogs(prev => [...prev, `FATAL: ${errorMsg}`, `ERR_TRACE: HTTP_${xhr.status}`]);
-      }
-    };
+        
+        URL.revokeObjectURL(url);
+        resolve(frames);
+      };
 
-    xhr.onerror = () => {
-      const errorMsg = "Infrastructure Latency Error: Connection Interrupted";
-      toast.error(errorMsg);
-      setIsUploading(false);
-      setLogs(prev => [...prev, `FATAL: ${errorMsg}. This usually happens if the file is too huge for the current connection bandwidth. Try a more stable network.`]);
-    };
-
-    xhr.onabort = () => {
-      setLogs(prev => [...prev, "WARN: Handshake aborted by client."]);
-      setIsUploading(false);
-    };
-
-    xhr.open("POST", "/api/upload");
-    // Ensure the connection stays alive for large payloads
-    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-    xhr.send(formData);
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not load video for frame extraction"));
+      };
+    });
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -188,39 +197,6 @@ function UploadSection() {
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) processFile(file);
-  };
-
-  const pollStatus = (jobId: string) => {
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/status/${jobId}`);
-        if (!response.ok) {
-          throw new Error(`Polling Sync Error: ${response.status}`);
-        }
-        const data = await response.json();
-
-        if (data.logs) {
-          setLogs(data.logs);
-        }
-
-        if (data.status === "completed") {
-          clearInterval(interval);
-          setVideoData(data);
-          setIsUploading(false);
-          toast.success("Intelligence Cycle Optimized");
-        } else if (data.status === "error") {
-          clearInterval(interval);
-          setIsUploading(false);
-          toast.error(`System Logic Error: ${data.error || "Undefined disruption"}`);
-        } else {
-          const totalProgress = 30 + Math.floor(data.progress * 0.7);
-          setUploadProgress(totalProgress);
-        }
-      } catch (error: any) {
-        console.error("Polling failure:", error);
-        setLogs(prev => [...prev.slice(-4), `RETRY: Ping failure (${error.message})`]);
-      }
-    }, 1000); 
   };
 
   return (
