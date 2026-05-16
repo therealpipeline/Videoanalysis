@@ -364,11 +364,11 @@ function StudioDashboard() {
         };
       });
 
-      addLog("Phase: Creative Engine Sync (Gemini 3.1 Pro)...");
+      addLog("Phase: Creative Engine Sync (Gemini 1.5 Flash)...");
       addLog("Analyzing visual signals and synthesizing narrative...");
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-1.5-flash",
         config: {
             responseMimeType: "application/json",
             responseSchema: {
@@ -442,8 +442,14 @@ function StudioDashboard() {
     } catch (error: any) {
       console.error("Analysis failure:", error);
       const errorMsg = error.message || "Unknown disruption";
-      toast.error(`System Logic Error: ${errorMsg.substring(0, 50)}...`);
-      addLog(`FATAL: Analysis failed. ${errorMsg}`);
+      
+      if (errorMsg.includes("429") || errorMsg.toLowerCase().includes("quota")) {
+        toast.error("Quota Exceeded: Your Free Tier Gemini API key has reached its limit. Please wait 1 minute or try a new API key.");
+        addLog("FATAL: API Quota Exceeded (429). Please check your Google AI Studio limits.");
+      } else {
+        toast.error(`System Logic Error: ${errorMsg.substring(0, 50)}...`);
+        addLog(`FATAL: Analysis failed. ${errorMsg}`);
+      }
       
       setVideoData(prev => prev ? { ...prev, error: errorMsg } : null);
       
