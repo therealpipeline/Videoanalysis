@@ -26,6 +26,7 @@ interface VideoData {
   analysis?: any;
   script?: any;
   editingPlan?: any;
+  globalNotes?: any;
   titles?: string[];
   description?: string;
 }
@@ -391,30 +392,32 @@ function StudioDashboard() {
                             viralTriggers: { type: Type.ARRAY, items: { type: Type.STRING } }
                         }
                     },
-                    script: {
-                        type: Type.OBJECT,
-                        properties: {
-                            hook: { type: Type.STRING },
-                            intro: { type: Type.STRING },
-                            mainBreakdown: { type: Type.STRING },
-                            escalation: { type: Type.STRING },
-                            reveal: { type: Type.STRING },
-                            outro: { type: Type.STRING }
-                        }
-                    },
+                    script: { type: Type.STRING },
                     editingPlan: {
                         type: Type.ARRAY,
                         items: {
                             type: Type.OBJECT,
                             properties: {
                                 timestamp: { type: Type.STRING },
-                                action: { type: Type.STRING },
-                                instruction: { type: Type.STRING },
-                                soundEffect: { type: Type.STRING }
+                                visual: { type: Type.STRING },
+                                transition: { type: Type.STRING },
+                                soundEffect: { type: Type.STRING },
+                                music: { type: Type.STRING },
+                                textOverlay: { type: Type.STRING },
+                                clipSpeed: { type: Type.STRING },
+                                directorNote: { type: Type.STRING }
                             }
                         }
                     },
-                    titles: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    globalNotes: {
+                        type: Type.OBJECT,
+                        properties: {
+                            colorGrade: { type: Type.STRING },
+                            musicArc: { type: Type.STRING },
+                            creativeChoice: { type: Type.STRING }
+                        }
+                    },
+                    titles: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Return an array with EXACTLY ONE title string." },
                     description: { type: Type.STRING }
                 }
             }
@@ -424,7 +427,68 @@ function StudioDashboard() {
             role: "user",
             parts: [
               ...frameParts,
-              { text: "Analyze these video frames like a professional YouTube Commentary creator. Understand context, emotions, and viral potential. Generate a full commentary package: detailed analysis, a cinematic script (hook, intro, breakdown, escalation, reveal, outro), a precise editing plan with timestamps, catchy titles, and an SEO description. Sound human, suspenseful, and clever. Respond in strict JSON format." }
+              { text: `Analyze these video frames and generate the full commentary package (analysis, script, editingPlan, globalNotes, titles, description).
+
+You are an elite commentary scriptwriter specializing in short-form viral content.
+Your job is to write a full commentary script for a 30 to 40 second short-form video that will be spoken over this clip.
+
+CORE RULE — EVERY SINGLE SECOND MUST HIT:
+- There is no warm up. No build up. No slow moments. Ever.
+- If a sentence does not hook, shock, hype, or make someone laugh — it gets cut.
+- The viewer's thumb is always one second away from scrolling — never let them breathe long enough to leave.
+- Every word must fight for its life to stay in the script.
+
+VOICE & TONE:
+- Raw, fast, expressive, and completely human.
+- Sound like the most unhinged, funniest, most opinionated person in the room.
+
+HOOK — FIRST 3 SECONDS ARE EVERYTHING:
+- The very first line must stop the scroll instantly.
+
+OUTPUT RULES FOR SCRIPT:
+- The 'script' property MUST be PLAIN TEXT ONLY.
+- No labels, no headers, no tags, no timestamps.
+- Just the raw spoken words exactly as they should sound out of a speaker.
+
+FOR THE EDITING PLAN (editingPlan & globalNotes):
+You are a world-class short-form video editor specializing in viral commentary content.
+Produce a precise, hyper-energetic editing plan for a 30 to 40 second short-form video.
+Cuts happen every 1 to 3 seconds maximum.
+
+For every segment in editingPlan, provide:
+- timestamp: [START to END]
+- visual: zoomed in, slow mo, meme overlay, reaction cam, etc.
+- transition: hard cut, smash cut, zoom transition, etc.
+- soundEffect: Exact SFX and timing (e.g. vine boom at 0:04).
+- music: track mood and energy.
+- textOverlay: max 3 words, high contrast.
+- clipSpeed: Normal, 0.5x, 1.25x etc.
+- directorNote: Emotional goal for segment.
+
+For globalNotes: colorGrade, musicArc, creativeChoice.
+
+════════════════════════════════════
+TITLE RULES FOR SHORTS (titles):
+════════════════════════════════════
+You are a YouTube Shorts SEO strategist.
+PSYCHOLOGY: Trigger instant emotional reaction (disbelief, curiosity, hype).
+FORMAT: Maximum 60 characters. No clickbait that doesn't deliver. CAPS on max 1-2 words. No emojis inside, one at the end only if it adds punch.
+OUTPUT: ONE title as the only element in the titles array.
+
+════════════════════════════════════
+DESCRIPTION RULES FOR SHORTS (description):
+════════════════════════════════════
+FORMAT: GSM (Google Search optimized and Social Media friendly).
+STRUCTURE:
+LINE 1: Most important — mirrors title energy and includes primary keyword naturally.
+LINE 2-3: Context punch — one or two sentences setting up what the video is about.
+LINE 4: Engagement trigger — Ask one specific question.
+LINE 5: 3 to 5 hashtags (#nichecontext #keyword).
+TONE: First person, fast, real, creator-style.
+SEO: Primary keyword in line 1. No keyword stuffing.
+OUTPUT: ONE description only. No label. No intro. Just the description text followed by hashtags.
+
+Respond in strict JSON format.` }
             ]
           }
         ]
@@ -744,12 +808,12 @@ function StudioDashboard() {
                      <h2 className="text-2xl font-bold tracking-tight">Commentary Script</h2>
                      <div className="flex gap-2">
                        <Button size="sm" variant="outline" className="h-7 text-[9px] uppercase font-bold" onClick={() => {
-                          const text = Object.values(videoData.script || {}).join("\n\n");
+                          const text = typeof videoData.script === 'string' ? videoData.script : Object.values(videoData.script || {}).join("\n\n");
                           navigator.clipboard.writeText(text);
                           toast.success("Script copied.");
                        }}>Copy Script</Button>
                        <Button size="sm" variant="outline" className="h-7 bg-blue-600/10 border-blue-500/20 text-blue-400 text-[9px] uppercase font-bold hover:bg-blue-600/20" onClick={() => {
-                          const text = Object.values(videoData.script || {}).join("\n\n");
+                          const text = typeof videoData.script === 'string' ? videoData.script : Object.values(videoData.script || {}).join("\n\n");
                           downloadAsText("commentary_script.txt", text);
                        }}>
                          <Download className="w-3 h-3 mr-1.5" />
@@ -757,45 +821,101 @@ function StudioDashboard() {
                        </Button>
                      </div>
                   </div>
-                  {Object.entries(videoData.script || {}).map(([key, value]) => (
-                    <div key={key} className="space-y-4 group">
-                       <div className="flex items-center gap-3">
-                          <span className="px-1.5 py-0.5 bg-blue-600/10 text-blue-400 border border-blue-500/20 rounded text-[9px] uppercase font-bold tracking-widest font-mono">
-                            {key}
-                          </span>
+                  {typeof videoData.script === 'string' ? (
+                     <div className="space-y-4">
+                        <p className="text-xl font-light leading-relaxed text-zinc-200 whitespace-pre-wrap antialiased selection:bg-blue-600 selection:text-white">
+                          {videoData.script}
+                        </p>
+                     </div>
+                  ) : (
+                     Object.entries(videoData.script || {}).map(([key, value]) => (
+                       <div key={key} className="space-y-4 group">
+                          <div className="flex items-center gap-3">
+                             <span className="px-1.5 py-0.5 bg-blue-600/10 text-blue-400 border border-blue-500/20 rounded text-[9px] uppercase font-bold tracking-widest font-mono">
+                               {key}
+                             </span>
+                          </div>
+                          <p className="text-xl font-light leading-relaxed text-zinc-200 antialiased selection:bg-blue-600 selection:text-white">
+                            {value as string}
+                          </p>
                        </div>
-                       <p className="text-xl font-light leading-relaxed text-zinc-200 antialiased selection:bg-blue-600 selection:text-white">
-                         {value as string}
-                       </p>
-                    </div>
-                  ))}
+                     ))
+                  )}
                </div>
             ) : (
                <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between border-b border-zinc-800 pb-4 mb-4">
                     <h2 className="text-2xl font-bold tracking-tight capitalize">Editing Instructions</h2>
                     <Button size="sm" variant="outline" className="h-7 bg-blue-600/10 border-blue-500/20 text-blue-400 text-[9px] uppercase font-bold hover:bg-blue-600/20" onClick={() => {
-                        const text = videoData.editingPlan?.map((s: any) => `${s.timestamp} | ${s.action.toUpperCase()} | SFX: ${s.soundEffect}\nInstruction: ${s.instruction}`).join("\n\n---\n\n");
-                        downloadAsText("editing_plan.txt", text || "No plan available.");
+                        const text = videoData.editingPlan?.map((s: any) => 
+                          `TIMESTAMP: ${s.timestamp}\nVISUAL: ${s.visual}\nTRANSITION: ${s.transition}\nSFX: ${s.soundEffect}\nMUSIC: ${s.music}\nTEXT: ${s.textOverlay}\nSPEED: ${s.clipSpeed}\nNOTE: ${s.directorNote}`
+                        ).join("\n\n---\n\n");
+                        const global = videoData.globalNotes ? `\n\nGLOBAL NOTES:\nColor: ${videoData.globalNotes.colorGrade}\nMusic: ${videoData.globalNotes.musicArc}\nCreative choice: ${videoData.globalNotes.creativeChoice}` : "";
+                        downloadAsText("editing_plan.txt", (text || "No plan available.") + global);
                     }}>
                       <Download className="w-3 h-3 mr-1.5" />
                       Download Plan
                     </Button>
                   </div>
-                  {videoData.editingPlan?.map((step: any, i: number) => (
-                    <div key={i} className="flex gap-6 p-4 bg-zinc-900/30 border border-zinc-800 rounded group hover:bg-zinc-900/60 transition-colors">
-                       <div className="w-12 pt-1">
-                          <span className="font-mono text-[10px] text-zinc-600">{step.timestamp}</span>
+
+                  {videoData.globalNotes && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+                       <div className="p-3 bg-zinc-900 border border-zinc-800 rounded">
+                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Color Grade</p>
+                          <p className="text-xs text-zinc-300">{videoData.globalNotes.colorGrade}</p>
                        </div>
-                       <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-3">
-                             <Badge variant="outline" className="text-[9px] bg-orange-500/10 border-orange-500/20 text-orange-400 uppercase font-bold tracking-wider rounded-sm">{step.action}</Badge>
-                             <span className="text-[10px] text-blue-400 font-mono italic opacity-60 group-hover:opacity-100 transition-opacity">SFX: {step.soundEffect}</span>
-                          </div>
-                          <p className="text-zinc-300 text-sm leading-normal">{step.instruction}</p>
+                       <div className="p-3 bg-zinc-900 border border-zinc-800 rounded">
+                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Music Arc</p>
+                          <p className="text-xs text-zinc-300">{videoData.globalNotes.musicArc}</p>
+                       </div>
+                       <div className="p-3 bg-zinc-900 border border-zinc-800 rounded">
+                          <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Creative Edge</p>
+                          <p className="text-xs text-blue-400 font-bold">{videoData.globalNotes.creativeChoice}</p>
                        </div>
                     </div>
-                  ))}
+                  )}
+
+                  <div className="space-y-4">
+                    {videoData.editingPlan?.map((step: any, i: number) => (
+                      <div key={i} className="flex flex-col gap-4 p-5 bg-zinc-900/30 border border-zinc-800 rounded-xl group hover:border-zinc-700 transition-all">
+                        <div className="flex items-center justify-between">
+                            <span className="font-mono text-[10px] text-blue-500 bg-blue-500/5 px-2 py-0.5 rounded border border-blue-500/10">
+                              {step.timestamp}
+                            </span>
+                            <div className="flex gap-2">
+                               <Badge variant="outline" className="text-[8px] bg-zinc-950 text-zinc-400 border-zinc-800 uppercase tracking-wider">{step.transition}</Badge>
+                               <Badge variant="outline" className="text-[8px] bg-zinc-950 text-emerald-400 border-zinc-800 uppercase tracking-wider">{step.clipSpeed}</Badge>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                           <div className="space-y-3">
+                              <div>
+                                 <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-1">Visual</p>
+                                 <p className="text-[11px] text-zinc-200 leading-relaxed font-medium">{step.visual}</p>
+                              </div>
+                              <div>
+                                 <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-1">Text Overlay</p>
+                                 <p className="text-[11px] text-amber-400 font-bold tracking-tight italic">"{step.textOverlay}"</p>
+                              </div>
+                           </div>
+                           <div className="space-y-3">
+                              <div>
+                                 <p className="text-[8px] font-black text-zinc-600 uppercase tracking-widest mb-1">Sound & Music</p>
+                                 <p className="text-[11px] text-zinc-400"><span className="text-zinc-500 font-mono">SFX:</span> {step.soundEffect}</p>
+                                 <p className="text-[11px] text-zinc-400"><span className="text-zinc-500 font-mono">TRACK:</span> {step.music}</p>
+                              </div>
+                              <div className="pt-2 border-t border-zinc-800/50">
+                                 <p className="text-[10px] text-blue-400/80 leading-relaxed italic">
+                                    <span className="text-[8px] font-black uppercase tracking-widest mr-2 opacity-50">Note:</span>
+                                    {step.directorNote}
+                                 </p>
+                              </div>
+                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                </div>
               )}
             </div>
