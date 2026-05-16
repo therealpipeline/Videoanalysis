@@ -360,22 +360,29 @@ function StudioDashboard() {
       addLog("Analyzing visual context with Flash...");
 
       // Step 1: Visual Ingestion with Flash
-      const visualModel = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const visualPrompt = "Analyze these video frames. Provide a highly detailed visual audit focusing on: primary actions, environment, emotional shifts, specific objects of interest, and any potential narrative tension. Write this as a technical report for a creative director.";
-      
-      const visualResult = await visualModel.generateContent([...frameParts, visualPrompt]);
-      const visualAudit = visualResult.response.text();
+      const visualResponse = await ai.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: [{
+          role: "user",
+          parts: [
+            ...frameParts,
+            { text: "Analyze these video frames. Provide a highly detailed visual audit focusing on: primary actions, environment, emotional shifts, specific objects of interest, and any potential narrative tension. Write this as a technical report for a creative director." }
+          ]
+        }]
+      });
+
+      const visualAudit = visualResponse.text;
+      if (!visualAudit) {
+        throw new Error("Phase 1: Visual audit failed.");
+      }
       
       addLog("Visual Audit Complete. Syncing with Creative Engine...");
       addLog("Phase 2: Narrative Synthesis (Gemini 1.5 Pro)...");
 
       // Step 2: Creative Synthesis with Pro
-      const creativeModel = ai.getGenerativeModel({ 
-        model: "gemini-1.5-pro" 
-      });
-
-      const response = await creativeModel.generateContent({
-        generationConfig: {
+      const response = await ai.models.generateContent({
+        model: "gemini-1.5-pro",
+        config: {
             responseMimeType: "application/json",
             responseSchema: {
                 type: Type.OBJECT,
@@ -429,13 +436,13 @@ function StudioDashboard() {
           {
             role: "user",
             parts: [
-              { text: `Based on this Visual Intelligence Report: \"${visualAudit}\", generate a professional YouTube Commentary package. Focus on creating high-retention hooks and viral appeal. Sound human and cinematic. Return the response in strict JSON format.` }
+              { text: `Based on this Visual Intelligence Report: "${visualAudit}", generate a professional YouTube Commentary package. Focus on creating high-retention hooks and viral appeal. Sound human and cinematic. Return the response in strict JSON format.` }
             ]
           }
         ]
       });
 
-      const text = response.response.text();
+      const text = response.text;
       if (!text) {
         throw new Error("Empty response from Narrative engine");
       }
